@@ -1,34 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 export const HeroHeader: React.FC = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 40) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-40 p-6 md:p-10 flex items-center justify-between transition-all duration-500 ease-out ${
-        isScrolled
-          ? "bg-slate-950/30 backdrop-blur-2xl border-b border-white/10 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
-          : "bg-transparent py-6"
-      }`}
-    >
+    <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none p-6 md:p-10 flex items-center justify-between bg-transparent">
       {/* Top Left: Liquid Glass Logo */}
       <div
-        className="flex items-center gap-3 group cursor-pointer"
+        className="pointer-events-auto flex items-center gap-3 group cursor-pointer"
         data-cursor-hover
       >
         <div className="w-9 h-9 rounded-full border border-white/20 bg-white/[0.04] backdrop-blur-xl flex items-center justify-center text-amber-400 font-serif font-light text-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.3)] group-hover:border-amber-400/60 transition-colors duration-500">
@@ -45,7 +24,7 @@ export const HeroHeader: React.FC = () => {
       </div>
 
       {/* Top Right: Liquid Glass Navigation Bar */}
-      <nav className="hidden md:flex items-center gap-8 bg-white/[0.03] backdrop-blur-xl border border-white/[0.12] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] px-7 py-2.5 rounded-full text-xs font-light text-slate-200">
+      <nav className="pointer-events-auto hidden md:flex items-center gap-8 bg-white/[0.03] backdrop-blur-xl border border-white/[0.12] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] px-7 py-2.5 rounded-full text-xs font-light text-slate-200">
         <a
           href="#concept"
           data-cursor-hover
