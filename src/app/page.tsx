@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CanvasSequence } from "@/components/CanvasSequence";
+import { HeroHeader } from "@/components/HeroHeader";
 import { useLenis } from "@/hooks/useLenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -14,7 +15,7 @@ export default function Home() {
   const TOTAL_FRAMES = 500;
   const INITIAL_PRELOAD = 150;
 
-  // 1. Initialize Lenis smooth scrolling via custom hook
+  // Initialize Lenis smooth scroll
   useLenis({
     duration: 1.2,
     smoothWheel: true,
@@ -22,17 +23,15 @@ export default function Home() {
   });
 
   useEffect(() => {
-    // 2. Setup pinned ScrollTrigger section with direct scroll scrubbing
-    // progress = ScrollTrigger.progress (0 to 1)
-    // currentFrame = Math.floor(progress * (totalFrames - 1))
+    // Setup pinned ScrollTrigger canvas section mapped strictly to scroll progress
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top top",
-      end: "+=500%", // 500vh scroll height for precise frame control
+      end: "+=500%", // 500vh scroll height for smooth frame control
       pin: true,
-      scrub: true, // Synchronized direct scroll scrubbing
+      scrub: true,
       onUpdate: (self) => {
-        const progress = self.progress;
+        const progress = self.progress; // 0.0 to 1.0
         const frameIndex = Math.min(
           TOTAL_FRAMES - 1,
           Math.max(0, Math.floor(progress * (TOTAL_FRAMES - 1)))
@@ -47,7 +46,10 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="bg-slate-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black">
+    <main className="bg-slate-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black relative">
+      {/* Top Left Logo & Top Right Navigation */}
+      <HeroHeader />
+
       {/* Pinned ScrollTrigger Canvas Section */}
       <div ref={containerRef} className="relative w-full h-screen overflow-hidden">
         <CanvasSequence
@@ -56,54 +58,36 @@ export default function Home() {
           currentFrameIndex={currentFrame}
         />
 
-        {/* Overlay Content / HUD */}
+        {/* Minimal Unobtrusive HUD Overlay */}
         <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-8 md:p-12">
-          {/* Header Bar */}
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <span className="text-xs uppercase tracking-[0.3em] font-semibold text-amber-400">
-                Apple-Style Scroll Scrubbing
-              </span>
-              <h1 className="text-xl font-light tracking-wide text-slate-200">
-                Villa Horizon 3D Experience
-              </h1>
-            </div>
-
-            <div className="bg-slate-900/60 backdrop-blur-md px-4 py-2 rounded-full border border-slate-800 text-xs font-mono text-slate-300">
-              FRAME {String(currentFrame + 1).padStart(4, "0")} / {TOTAL_FRAMES}
-            </div>
+          {/* Subtle Frame Counter in Bottom Right */}
+          <div className="absolute bottom-8 right-8 z-20 bg-slate-950/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800/80 text-[11px] font-mono text-slate-300 shadow-xl">
+            FRAME {String(currentFrame + 1).padStart(4, "0")} / {TOTAL_FRAMES}
           </div>
+        </div>
 
-          {/* Bottom Callout */}
-          <div className="flex flex-col md:flex-row justify-between items-end gap-6">
-            <div className="max-w-md space-y-2">
-              <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-amber-400/80">
-                Lenis Smooth Scroll + GSAP Sync
-              </span>
-              <p className="text-sm text-slate-300 font-light leading-relaxed">
-                Scroll down to scrub forward through frames. Stop scrolling to freeze the exact frame. Scroll back up to reverse the sequence frame-by-frame.
-              </p>
-            </div>
-
-            {/* Scroll Prompt */}
-            <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-800 text-xs text-slate-400">
-              <span className="animate-bounce text-amber-400">↓</span>
-              <span className="uppercase tracking-widest font-mono text-[11px]">
-                Scroll To Scrub Sequence
-              </span>
-            </div>
+        {/* Minimal Animated Scroll Indicator at Bottom Center */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center gap-2.5">
+          <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-slate-400/90 font-light">
+            SCROLL TO EXPLORE
+          </span>
+          <div className="w-5 h-9 rounded-full border border-slate-700/80 flex justify-center p-1.5 backdrop-blur-sm bg-slate-950/40 shadow-lg">
+            <div className="w-1 h-2 rounded-full bg-amber-400 animate-bounce" />
           </div>
         </div>
       </div>
 
       {/* Continuation Content Below Pinned Canvas */}
-      <section className="py-32 px-8 max-w-5xl mx-auto space-y-12">
-        <div className="border-t border-slate-800 pt-16">
-          <h2 className="text-3xl font-light tracking-wide text-amber-400 mb-6">
-            Cinematic Scroll Synchronization
+      <section id="concept" className="py-32 px-8 max-w-5xl mx-auto space-y-12">
+        <div className="border-t border-slate-800/80 pt-16">
+          <span className="text-xs uppercase tracking-[0.3em] text-amber-400 font-mono">
+            ARCHITECTURAL PHILOSOPHY
+          </span>
+          <h2 className="text-3xl font-light tracking-wide text-slate-100 mt-2 mb-6">
+            Pure Spatial Harmony
           </h2>
-          <p className="text-slate-400 text-lg leading-relaxed max-w-3xl">
-            Lenis smooth scrolling handles wheel physics and momentum, while GSAP ScrollTrigger updates frame targets in lockstep on every animation frame.
+          <p className="text-slate-400 text-lg leading-relaxed max-w-3xl font-light">
+            Villa Horizon seamlessly combines modern structural minimalism with surrounding organic landscapes. Scroll through the 3D sequence to experience light, scale, and volume as they transform dynamically.
           </p>
         </div>
       </section>
