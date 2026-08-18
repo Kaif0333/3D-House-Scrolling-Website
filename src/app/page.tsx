@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CanvasSequence } from "@/components/CanvasSequence";
+import { useLenis } from "@/hooks/useLenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Lenis from "lenis";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,33 +14,25 @@ export default function Home() {
   const TOTAL_FRAMES = 500;
   const INITIAL_PRELOAD = 150;
 
+  // 1. Initialize Lenis smooth scrolling via custom hook
+  useLenis({
+    duration: 1.2,
+    smoothWheel: true,
+    touchMultiplier: 2,
+  });
+
   useEffect(() => {
-    // 1. Initialize Lenis smooth scroll
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      touchMultiplier: 2,
-    });
-
-    lenis.on("scroll", ScrollTrigger.update);
-
-    gsap.ticker.add((time) => {
-      lenis.raf(time * 1000);
-    });
-
-    gsap.ticker.lagSmoothing(0);
-
     // 2. Setup pinned ScrollTrigger section with direct scroll scrubbing
     // progress = ScrollTrigger.progress (0 to 1)
     // currentFrame = Math.floor(progress * (totalFrames - 1))
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top top",
-      end: "+=500%", // 500vh scroll height for precise Apple-style frame control
+      end: "+=500%", // 500vh scroll height for precise frame control
       pin: true,
-      scrub: true, // Direct lock to scroll position without auto-play
+      scrub: true, // Synchronized direct scroll scrubbing
       onUpdate: (self) => {
-        const progress = self.progress; // 0 to 1
+        const progress = self.progress;
         const frameIndex = Math.min(
           TOTAL_FRAMES - 1,
           Math.max(0, Math.floor(progress * (TOTAL_FRAMES - 1)))
@@ -51,7 +43,6 @@ export default function Home() {
 
     return () => {
       trigger.kill();
-      lenis.destroy();
     };
   }, []);
 
@@ -87,7 +78,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-end gap-6">
             <div className="max-w-md space-y-2">
               <span className="text-[10px] uppercase tracking-[0.25em] font-mono text-amber-400/80">
-                Direct Mouse & Touch Scrubbing
+                Lenis Smooth Scroll + GSAP Sync
               </span>
               <p className="text-sm text-slate-300 font-light leading-relaxed">
                 Scroll down to scrub forward through frames. Stop scrolling to freeze the exact frame. Scroll back up to reverse the sequence frame-by-frame.
@@ -109,10 +100,10 @@ export default function Home() {
       <section className="py-32 px-8 max-w-5xl mx-auto space-y-12">
         <div className="border-t border-slate-800 pt-16">
           <h2 className="text-3xl font-light tracking-wide text-amber-400 mb-6">
-            Exact Frame Control Mechanics
+            Cinematic Scroll Synchronization
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed max-w-3xl">
-            This component operates strictly on scroll position mapping. No internal frame increment loops, no video elements, and no autoplay. Canvas redraws occur exclusively when the target frame index changes due to user scrolling.
+            Lenis smooth scrolling handles wheel physics and momentum, while GSAP ScrollTrigger updates frame targets in lockstep on every animation frame.
           </p>
         </div>
       </section>
