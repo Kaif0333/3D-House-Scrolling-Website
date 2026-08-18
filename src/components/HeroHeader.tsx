@@ -22,16 +22,16 @@ export const HeroHeader: React.FC = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-40 p-6 md:p-10 flex items-center justify-between transition-all duration-500 ease-out ${
         isScrolled
-          ? "bg-slate-950/40 backdrop-blur-xl border-b border-slate-800/40 py-4"
+          ? "bg-slate-950/30 backdrop-blur-2xl border-b border-white/10 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
           : "bg-transparent py-6"
       }`}
     >
-      {/* Top Left: Elegant Logo */}
+      {/* Top Left: Liquid Glass Logo */}
       <div
         className="flex items-center gap-3 group cursor-pointer"
         data-cursor-hover
       >
-        <div className="w-9 h-9 rounded-full border border-amber-400/40 bg-slate-950/60 backdrop-blur-md flex items-center justify-center text-amber-400 font-serif font-light text-sm shadow-[0_0_15px_rgba(245,158,11,0.1)] group-hover:border-amber-400 transition-colors duration-300">
+        <div className="w-9 h-9 rounded-full border border-white/20 bg-white/[0.04] backdrop-blur-xl flex items-center justify-center text-amber-400 font-serif font-light text-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.3)] group-hover:border-amber-400/60 transition-colors duration-500">
           H
         </div>
         <div className="flex flex-col">
@@ -44,8 +44,8 @@ export const HeroHeader: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Right: Minimal Navigation Bar */}
-      <nav className="hidden md:flex items-center gap-8 bg-slate-950/50 backdrop-blur-md border border-slate-800/80 px-6 py-2.5 rounded-full text-xs font-light text-slate-300 shadow-xl">
+      {/* Top Right: Liquid Glass Navigation Bar */}
+      <nav className="hidden md:flex items-center gap-8 bg-white/[0.03] backdrop-blur-xl border border-white/[0.12] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] px-7 py-2.5 rounded-full text-xs font-light text-slate-200">
         <a
           href="#concept"
           data-cursor-hover
@@ -67,10 +67,12 @@ export const HeroHeader: React.FC = () => {
         >
           Gallery
         </a>
+        
+        {/* Transparent Liquid Glass CTA Button */}
         <a
           href="#inquire"
           data-cursor-hover
-          className="bg-amber-400/10 hover:bg-amber-400 text-amber-400 hover:text-slate-950 border border-amber-400/30 px-4 py-1.5 rounded-full transition-all duration-300 text-[10px] font-mono tracking-widest uppercase font-semibold"
+          className="bg-white/[0.05] hover:bg-amber-400/20 text-slate-100 hover:text-amber-300 border border-white/20 hover:border-amber-400/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.3)] backdrop-blur-md transition-all duration-500 px-5 py-1.5 rounded-full text-[10px] font-mono tracking-[0.2em] uppercase font-medium"
         >
           Inquire
         </a>
