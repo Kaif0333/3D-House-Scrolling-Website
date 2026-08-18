@@ -24,7 +24,6 @@ export const CanvasSequence: React.FC<CanvasSequenceProps> = ({
   const [loadedCount, setLoadedCount] = useState<number>(0);
   const [isInitialLoaded, setIsInitialLoaded] = useState<boolean>(false);
   const [preloaderHidden, setPreloaderHidden] = useState<boolean>(false);
-  const [bgLoadedCount, setBgLoadedCount] = useState<number>(0);
 
   // Helper to format frame filename: /frames/frame_0001.jpg
   const getFrameUrl = (index: number) => {
@@ -159,7 +158,6 @@ export const CanvasSequence: React.FC<CanvasSequenceProps> = ({
     const loadBackgroundFrames = (startIndex: number) => {
       if (startIndex >= totalFrames) return;
 
-      let bgCount = 0;
       const batchSize = 10;
       let currentIndex = startIndex;
 
@@ -176,16 +174,10 @@ export const CanvasSequence: React.FC<CanvasSequenceProps> = ({
             img.onload = () => {
               if (mounted) {
                 imagesRef.current[i] = img;
-                bgCount++;
-                setBgLoadedCount(bgCount);
               }
               resolve();
             };
             img.onerror = () => {
-              if (mounted) {
-                bgCount++;
-                setBgLoadedCount(bgCount);
-              }
               resolve();
             };
           });
@@ -280,21 +272,7 @@ export const CanvasSequence: React.FC<CanvasSequenceProps> = ({
                 style={{ width: `${loadingPercentage}%` }}
               />
             </div>
-
-            <p className="text-xs text-slate-400 tracking-widest font-light">
-              PRELOADING INITIAL FRAMES ({loadedCount}/{initialPreloadCount})
-            </p>
           </div>
-        </div>
-      )}
-
-      {/* Subtle Background Loading Status Indicator */}
-      {isInitialLoaded && bgLoadedCount < (totalFrames - initialPreloadCount) && (
-        <div className="absolute bottom-4 right-4 z-40 flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800/80 text-[10px] text-slate-400 font-mono shadow-lg transition-opacity duration-300">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-          <span>
-            Caching Sequence: {initialPreloadCount + bgLoadedCount}/{totalFrames}
-          </span>
         </div>
       )}
     </div>

@@ -85,14 +85,6 @@ export default function Home() {
         {/* Interior Timeline Overlays (Entrance, Living Room, Kitchen, Bedroom, Bathroom, Garden) */}
         <TimelineOverlays currentFrame={currentFrame} />
 
-        {/* Minimal Unobtrusive HUD Overlay */}
-        <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-8 md:p-12">
-          {/* Frame Counter in Top Right (under nav) */}
-          <div className="absolute top-24 right-10 z-20 bg-slate-950/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800/80 text-[11px] font-mono text-slate-300 shadow-xl">
-            FRAME {String(currentFrame + 1).padStart(4, "0")} / {TOTAL_FRAMES}
-          </div>
-        </div>
-
         {/* Minimal Animated Scroll Indicator at Bottom Center */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-2">
           <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-slate-400/90 font-light">
