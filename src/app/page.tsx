@@ -7,6 +7,12 @@ import { TimelineOverlays } from "@/components/TimelineOverlays";
 import { RoomProgressNav } from "@/components/RoomProgressNav";
 import { CustomCursor } from "@/components/CustomCursor";
 import { VisualOverlays } from "@/components/VisualOverlays";
+import { ArchitecturalConcept } from "@/components/ArchitecturalConcept";
+import { ResidencesExplorer } from "@/components/ResidencesExplorer";
+import { LuxuryAmenities } from "@/components/LuxuryAmenities";
+import { MaterialityShowcase } from "@/components/MaterialityShowcase";
+import { InquirySection } from "@/components/InquirySection";
+import { LuxuryFooter } from "@/components/LuxuryFooter";
 import { useLenis } from "@/hooks/useLenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -19,7 +25,7 @@ export default function Home() {
   const TOTAL_FRAMES = 500;
   const INITIAL_PRELOAD = 150;
 
-  // Initialize Lenis smooth scroll and receive active instance
+  // Initialize Lenis smooth scroll
   const lenis = useLenis({
     duration: 1.2,
     smoothWheel: true,
@@ -50,7 +56,7 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="bg-slate-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black relative">
+    <main className="bg-slate-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black relative overflow-x-hidden">
       {/* Luxury Custom Cursor */}
       <CustomCursor />
 
@@ -98,20 +104,23 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Continuation Content Below Pinned Canvas */}
-      <section id="concept" className="py-32 px-8 max-w-5xl mx-auto space-y-12">
-        <div className="border-t border-slate-800/80 pt-16">
-          <span className="text-xs uppercase tracking-[0.3em] text-amber-400 font-mono">
-            ARCHITECTURAL PHILOSOPHY
-          </span>
-          <h2 className="text-3xl font-light tracking-wide text-slate-100 mt-2 mb-6">
-            Pure Spatial Harmony
-          </h2>
-          <p className="text-slate-400 text-lg leading-relaxed max-w-3xl font-light">
-            Villa Horizon seamlessly combines modern structural minimalism with surrounding organic landscapes. Scroll through the 3D sequence to experience light, scale, and volume as they transform dynamically.
-          </p>
-        </div>
-      </section>
+      {/* Section 01: Architectural Philosophy & Vision */}
+      <ArchitecturalConcept />
+
+      {/* Section 02: Residences & Interactive Floor Plans */}
+      <ResidencesExplorer />
+
+      {/* Section 03: Unrivaled Luxury Amenities Bento Grid */}
+      <LuxuryAmenities />
+
+      {/* Section 04: Architectural Materiality & Swatches */}
+      <MaterialityShowcase />
+
+      {/* Section 05: Private Consultation & Inquiry Form */}
+      <InquirySection />
+
+      {/* Ultra-Luxury Footer */}
+      <LuxuryFooter lenisInstance={lenis} />
     </main>
   );
 }
