@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CanvasSequence } from "@/components/CanvasSequence";
 import { HeroHeader } from "@/components/HeroHeader";
+import { TimelineOverlays } from "@/components/TimelineOverlays";
 import { useLenis } from "@/hooks/useLenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -27,7 +28,7 @@ export default function Home() {
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top top",
-      end: "+=500%", // 500vh scroll height for smooth frame control
+      end: "+=500%", // 500vh scroll height for precise frame control
       pin: true,
       scrub: true,
       onUpdate: (self) => {
@@ -52,27 +53,31 @@ export default function Home() {
 
       {/* Pinned ScrollTrigger Canvas Section */}
       <div ref={containerRef} className="relative w-full h-screen overflow-hidden">
+        {/* Canvas Render Engine */}
         <CanvasSequence
           totalFrames={TOTAL_FRAMES}
           initialPreloadCount={INITIAL_PRELOAD}
           currentFrameIndex={currentFrame}
         />
 
+        {/* Interior Timeline Overlays (Entrance, Living Room, Kitchen, Bedroom, Bathroom, Garden) */}
+        <TimelineOverlays currentFrame={currentFrame} />
+
         {/* Minimal Unobtrusive HUD Overlay */}
         <div className="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-8 md:p-12">
-          {/* Subtle Frame Counter in Bottom Right */}
-          <div className="absolute bottom-8 right-8 z-20 bg-slate-950/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800/80 text-[11px] font-mono text-slate-300 shadow-xl">
+          {/* Frame Counter in Top Right (under nav) */}
+          <div className="absolute top-24 right-10 z-20 bg-slate-950/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-800/80 text-[11px] font-mono text-slate-300 shadow-xl">
             FRAME {String(currentFrame + 1).padStart(4, "0")} / {TOTAL_FRAMES}
           </div>
         </div>
 
         {/* Minimal Animated Scroll Indicator at Bottom Center */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center gap-2.5">
-          <span className="text-[10px] font-mono tracking-[0.3em] uppercase text-slate-400/90 font-light">
-            SCROLL TO EXPLORE
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none flex flex-col items-center gap-2">
+          <span className="text-[9px] font-mono tracking-[0.3em] uppercase text-slate-400/90 font-light">
+            SCROLL TO SCRUB SEQUENCE
           </span>
-          <div className="w-5 h-9 rounded-full border border-slate-700/80 flex justify-center p-1.5 backdrop-blur-sm bg-slate-950/40 shadow-lg">
-            <div className="w-1 h-2 rounded-full bg-amber-400 animate-bounce" />
+          <div className="w-4 h-8 rounded-full border border-slate-700/80 flex justify-center p-1 backdrop-blur-sm bg-slate-950/40 shadow-lg">
+            <div className="w-1 h-1.5 rounded-full bg-amber-400 animate-bounce" />
           </div>
         </div>
       </div>
