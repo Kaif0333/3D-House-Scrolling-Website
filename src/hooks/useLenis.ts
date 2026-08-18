@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -16,16 +16,17 @@ export interface UseLenisOptions {
 /**
  * Custom React hook that initializes Lenis smooth scrolling,
  * synchronizes it with GSAP ScrollTrigger ticker,
+ * exposes the Lenis instance for programmatically scrolling,
  * and ensures proper cleanup to avoid memory leaks.
  */
-export function useLenis(options: UseLenisOptions = {}) {
-  const lenisRef = useRef<Lenis | null>(null);
+export function useLenis(options: UseLenisOptions = {}): Lenis | null {
+  const [lenisInstance, setLenisInstance] = useState<Lenis | null>(null);
 
   useEffect(() => {
-    // Ensure GSAP ScrollTrigger plugin is registered
+    // Register GSAP ScrollTrigger plugin
     gsap.registerPlugin(ScrollTrigger);
 
-    // Initialize Lenis with cinematic defaults
+    // Initialize Lenis with cinematic options
     const lenis = new Lenis({
       duration: options.duration ?? 1.2,
       easing:
@@ -35,7 +36,7 @@ export function useLenis(options: UseLenisOptions = {}) {
       infinite: options.infinite ?? false,
     });
 
-    lenisRef.current = lenis;
+    setLenisInstance(lenis);
 
     // Synchronize Lenis scroll events with GSAP ScrollTrigger
     const handleScroll = () => {
@@ -50,14 +51,14 @@ export function useLenis(options: UseLenisOptions = {}) {
     gsap.ticker.add(updateTicker);
     gsap.ticker.lagSmoothing(0);
 
-    // Cleanup function to prevent memory leaks on unmount
+    // Cleanup function on unmount to prevent memory leaks
     return () => {
       lenis.off("scroll", handleScroll);
       gsap.ticker.remove(updateTicker);
       lenis.destroy();
-      lenisRef.current = null;
+      setLenisInstance(null);
     };
   }, [options.duration, options.easing, options.smoothWheel, options.touchMultiplier, options.infinite]);
 
-  return lenisRef;
+  return lenisInstance;
 }

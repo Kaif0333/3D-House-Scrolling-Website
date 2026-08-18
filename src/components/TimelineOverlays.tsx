@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export interface SpaceZone {
   id: string;
@@ -95,25 +95,36 @@ interface TimelineOverlaysProps {
 }
 
 export const TimelineOverlays: React.FC<TimelineOverlaysProps> = ({ currentFrame }) => {
+  const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
+
+  // Mouse Parallax Effect for Glass Cards
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const { innerWidth, innerHeight } = window;
+      const normX = (e.clientX / innerWidth - 0.5) * 2; // -1 to 1
+      const normY = (e.clientY / innerHeight - 0.5) * 2; // -1 to 1
+      setMouseOffset({ x: normX * 12, y: normY * 12 });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
   return (
     <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
       {ZONES.map((zone) => {
-        // Calculate smooth opacity and translateY transition based on current frame
         let opacity = 0;
-        let translateY = 24; // Default starting 24px below
+        let translateY = 24;
 
         if (currentFrame >= zone.startFrame && currentFrame <= zone.endFrame) {
           if (currentFrame < zone.peakStartFrame) {
-            // Fade in phase
             const progress = (currentFrame - zone.startFrame) / (zone.peakStartFrame - zone.startFrame);
             opacity = Math.max(0, Math.min(1, progress));
             translateY = 24 * (1 - opacity);
           } else if (currentFrame <= zone.peakEndFrame) {
-            // Peak visible phase
             opacity = 1;
             translateY = 0;
           } else {
-            // Fade out phase
             const progress = (currentFrame - zone.peakEndFrame) / (zone.endFrame - zone.peakEndFrame);
             opacity = Math.max(0, Math.min(1, 1 - progress));
             translateY = -16 * (1 - opacity);
@@ -129,15 +140,16 @@ export const TimelineOverlays: React.FC<TimelineOverlaysProps> = ({ currentFrame
             key={zone.id}
             style={{
               opacity,
-              transform: `translateY(${translateY}px)`,
-              transition: "opacity 100ms ease-out, transform 100ms ease-out",
+              transform: `translate3d(${mouseOffset.x}px, ${translateY + mouseOffset.y}px, 0)`,
+              transition: "opacity 120ms ease-out, transform 120ms ease-out",
             }}
-            className={`absolute bottom-20 md:bottom-24 max-w-sm w-[calc(100%-4rem)] ${
+            className={`absolute bottom-20 md:bottom-24 max-w-sm w-[calc(100%-4rem)] pointer-events-auto ${
               isLeft ? "left-8 md:left-16" : "right-8 md:right-16"
             }`}
+            data-cursor-hover
           >
             {/* Glassmorphism Card Container */}
-            <div className="bg-slate-950/50 backdrop-blur-xl border border-slate-800/70 p-6 md:p-7 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+            <div className="bg-slate-950/50 backdrop-blur-xl border border-slate-800/70 p-6 md:p-7 rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden group hover:border-amber-400/50 transition-colors duration-300">
               {/* Subtle top accent bar */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500/80 via-amber-300 to-transparent" />
 

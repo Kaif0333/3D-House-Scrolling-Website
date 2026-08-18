@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { CanvasSequence } from "@/components/CanvasSequence";
 import { HeroHeader } from "@/components/HeroHeader";
 import { TimelineOverlays } from "@/components/TimelineOverlays";
+import { RoomProgressNav } from "@/components/RoomProgressNav";
+import { CustomCursor } from "@/components/CustomCursor";
+import { VisualOverlays } from "@/components/VisualOverlays";
 import { useLenis } from "@/hooks/useLenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -16,8 +19,8 @@ export default function Home() {
   const TOTAL_FRAMES = 500;
   const INITIAL_PRELOAD = 150;
 
-  // Initialize Lenis smooth scroll
-  useLenis({
+  // Initialize Lenis smooth scroll and receive active instance
+  const lenis = useLenis({
     duration: 1.2,
     smoothWheel: true,
     touchMultiplier: 2,
@@ -28,7 +31,7 @@ export default function Home() {
     const trigger = ScrollTrigger.create({
       trigger: containerRef.current,
       start: "top top",
-      end: "+=500%", // 500vh scroll height for precise frame control
+      end: "+=500%", // 500vh scroll height for smooth frame control
       pin: true,
       scrub: true,
       onUpdate: (self) => {
@@ -48,8 +51,21 @@ export default function Home() {
 
   return (
     <main className="bg-slate-950 text-white min-h-screen font-sans selection:bg-amber-500 selection:text-black relative">
+      {/* Luxury Custom Cursor */}
+      <CustomCursor />
+
+      {/* Visual Polish: Film Grain & Vignette Overlays */}
+      <VisualOverlays />
+
       {/* Top Left Logo & Top Right Navigation */}
       <HeroHeader />
+
+      {/* Floating Room Progress Navigation (Right Side) */}
+      <RoomProgressNav
+        currentFrame={currentFrame}
+        lenisInstance={lenis}
+        scrollSectionRef={containerRef}
+      />
 
       {/* Pinned ScrollTrigger Canvas Section */}
       <div ref={containerRef} className="relative w-full h-screen overflow-hidden">
