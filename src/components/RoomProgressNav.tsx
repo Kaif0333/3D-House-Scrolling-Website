@@ -1,139 +1,100 @@
 "use client";
 
-import React from "react";
-import Lenis from "lenis";
+import React, { useRef } from "react";
+import { ROOMS, SEQUENCE } from "@/data/villa";
+import { useSmoothScroll } from "@/components/SmoothScroll";
+import { gsap, ScrollTrigger, useGsap, prefersReducedMotion } from "@/lib/motion";
 
-export interface RoomNavItem {
-  id: string;
-  name: string;
-  shortName: string;
-  startFrame: number;
-  endFrame: number;
-  targetProgress: number; // 0.0 to 1.0
-}
-
-export const ROOMS: RoomNavItem[] = [
-  {
-    id: "entrance",
-    name: "Grand Entrance",
-    shortName: "Entrance",
-    startFrame: 15,
-    endFrame: 80,
-    targetProgress: 0.08,
-  },
-  {
-    id: "living",
-    name: "Living Space",
-    shortName: "Living",
-    startFrame: 95,
-    endFrame: 165,
-    targetProgress: 0.25,
-  },
-  {
-    id: "kitchen",
-    name: "Culinary Atelier",
-    shortName: "Kitchen",
-    startFrame: 180,
-    endFrame: 250,
-    targetProgress: 0.42,
-  },
-  {
-    id: "bedroom",
-    name: "Master Suite",
-    shortName: "Bedroom",
-    startFrame: 265,
-    endFrame: 335,
-    targetProgress: 0.59,
-  },
-  {
-    id: "bathroom",
-    name: "Wellness Spa",
-    shortName: "Bathroom",
-    startFrame: 350,
-    endFrame: 420,
-    targetProgress: 0.77,
-  },
-  {
-    id: "garden",
-    name: "Zen Garden",
-    shortName: "Garden",
-    startFrame: 435,
-    endFrame: 498,
-    targetProgress: 0.92,
-  },
-];
+const LAST_FRAME = SEQUENCE.totalFrames - 1;
 
 interface RoomProgressNavProps {
-  currentFrame: number;
-  lenisInstance: Lenis | null;
-  scrollSectionRef: React.RefObject<HTMLDivElement | null>;
+  activeRoom: string | null;
 }
 
-export const RoomProgressNav: React.FC<RoomProgressNavProps> = ({
-  currentFrame,
-  lenisInstance,
-  scrollSectionRef,
-}) => {
-  // Determine currently active room based on frame range
-  const activeRoomId = ROOMS.find(
-    (r) => currentFrame >= r.startFrame && currentFrame <= r.endFrame
-  )?.id;
+/**
+ * The right-hand room rail.
+ *
+ * Jump targets are derived from the pinned ScrollTrigger's own span, so the
+ * frame ranges in the data file are the single source of truth. (Deriving them
+ * from document height instead is what made every dot land in the wrong room.)
+ */
+export function RoomProgressNav({ activeRoom }: RoomProgressNavProps) {
+  const railRef = useRef<HTMLElement | null>(null);
+  const { scrollTo } = useSmoothScroll();
 
-  const handleRoomClick = (targetProgress: number) => {
-    if (!lenisInstance || !scrollSectionRef.current) return;
+  // The rail belongs to the hero — retire it once the pin lets go, so it never
+  // floats over the form and footer pointing at rooms that are off screen.
+  useGsap(() => {
+    const rail = railRef.current;
+    if (!rail || prefersReducedMotion()) return;
 
-    // Calculate absolute scroll position based on total scrollable distance
-    const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const targetScroll = totalHeight * targetProgress;
-
-    lenisInstance.scrollTo(targetScroll, {
-      duration: 1.6,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    const st = ScrollTrigger.create({
+      trigger: "#hero",
+      start: "top top",
+      end: SEQUENCE.scrollLength,
+      onToggle: (self) =>
+        gsap.to(rail, {
+          autoAlpha: self.isActive ? 1 : 0,
+          duration: 0.4,
+          overwrite: true,
+        }),
     });
+
+    return () => st.kill();
+  }, undefined, []);
+
+  const goToRoom = (startFrame: number, endFrame: number) => {
+    const pin = ScrollTrigger.getById(SEQUENCE.triggerId);
+    const midFrame = (startFrame + endFrame) / 2;
+
+    if (!pin) {
+      // No pin (reduced motion): the hero is a still, so just go to it.
+      scrollTo("#hero", { duration: 1.2 });
+      return;
+    }
+
+    const target = pin.start + (midFrame / LAST_FRAME) * (pin.end - pin.start);
+    scrollTo(target, { duration: 1.5 });
   };
 
   return (
-    <div className="fixed right-6 md:right-10 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end gap-5 pointer-events-auto">
-      {ROOMS.map((room, index) => {
-        const isActive = activeRoomId === room.id;
-
+    <nav
+      ref={railRef}
+      aria-label="Rooms in the walkthrough"
+      className="fixed right-3 top-1/2 z-40 hidden -translate-y-1/2 flex-col items-end gap-1 sm:flex md:right-6"
+    >
+      {ROOMS.map((room) => {
+        const isActive = activeRoom === room.id;
         return (
           <button
             key={room.id}
-            onClick={() => handleRoomClick(room.targetProgress)}
-            className="group flex items-center gap-3 cursor-pointer focus:outline-none"
+            type="button"
+            onClick={() => goToRoom(room.startFrame, room.endFrame)}
+            aria-current={isActive ? "true" : undefined}
             data-cursor-hover
-            aria-label={`Scroll to ${room.name}`}
+            className="group flex min-h-11 items-center gap-3 px-2 py-2"
           >
-            {/* Tooltip Label */}
             <span
-              className={`text-[10px] uppercase font-mono tracking-[0.2em] transition-all duration-300 ${
+              className={`font-mono text-[10px] uppercase tracking-[0.18em] transition-all duration-300 ${
                 isActive
-                  ? "opacity-100 text-amber-400 font-semibold translate-x-0"
-                  : "opacity-0 group-hover:opacity-100 text-slate-400 translate-x-2"
+                  ? "translate-x-0 text-champagne opacity-100"
+                  : "translate-x-1 text-stone opacity-0 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
               }`}
             >
-              {String(index + 1).padStart(2, "0")}. {room.shortName}
+              {room.index} {room.shortName}
             </span>
 
-            {/* Indicator Dot */}
-            <div className="relative flex items-center justify-center w-5 h-5">
-              {/* Outer pulsing ring for active state */}
-              {isActive && (
-                <span className="absolute inset-0 rounded-full border border-amber-400/60 animate-ping" />
-              )}
-              {/* Inner Dot */}
-              <span
-                className={`rounded-full transition-all duration-300 ${
-                  isActive
-                    ? "w-3 h-3 bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.9)] scale-110"
-                    : "w-1.5 h-1.5 bg-slate-700 group-hover:bg-slate-400 group-hover:scale-125"
-                }`}
-              />
-            </div>
+            {/* Measure line — length encodes state, so it is not colour-only */}
+            <span
+              className={`block h-px transition-all duration-500 ${
+                isActive
+                  ? "w-7 bg-champagne"
+                  : "w-3 bg-stone-dim group-hover:w-5 group-hover:bg-stone"
+              }`}
+            />
           </button>
         );
       })}
-    </div>
+    </nav>
   );
-};
+}

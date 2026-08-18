@@ -1,0 +1,3 @@
+# Source frames are the input to scripts/build-assets.mjs, not runtime assets.
+# The site serves public/seq and public/stills, which are generated from these.
+assets/

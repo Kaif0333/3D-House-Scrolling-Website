@@ -1,61 +1,193 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { gsap, ScrollTrigger, useGsap, magnetic, EASE } from "@/lib/motion";
 
-export const HeroHeader: React.FC = () => {
+const NAV = [
+  { href: "#concept", label: "Concept" },
+  { href: "#residences", label: "Residences" },
+  { href: "#gallery", label: "Gallery" },
+  { href: "#location", label: "Location" },
+];
+
+/** Bespoke monogram — an H drawn as two piers and a spanning lintel. */
+function Monogram({ className = "" }: { className?: string }) {
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none p-6 md:p-10 flex items-center justify-between bg-transparent">
-      {/* Top Left: Liquid Glass Logo */}
-      <div
-        className="pointer-events-auto flex items-center gap-3 group cursor-pointer"
-        data-cursor-hover
-      >
-        <div className="w-9 h-9 rounded-full border border-white/20 bg-white/[0.04] backdrop-blur-xl flex items-center justify-center text-amber-400 font-serif font-light text-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.3)] group-hover:border-amber-400/60 transition-colors duration-500">
-          H
-        </div>
-        <div className="flex flex-col">
-          <span className="text-xs font-light tracking-[0.3em] text-slate-100 uppercase font-sans">
-            HORIZON
-          </span>
-          <span className="text-[9px] tracking-[0.3em] text-amber-400/80 uppercase font-mono">
-            VILLA RESIDENCE
-          </span>
-        </div>
-      </div>
-
-      {/* Top Right: Liquid Glass Navigation Bar */}
-      <nav className="pointer-events-auto hidden md:flex items-center gap-8 bg-white/[0.03] backdrop-blur-xl border border-white/[0.12] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] px-7 py-2.5 rounded-full text-xs font-light text-slate-200">
-        <a
-          href="#concept"
-          data-cursor-hover
-          className="hover:text-amber-400 transition-colors duration-300 uppercase tracking-widest text-[11px]"
-        >
-          Concept
-        </a>
-        <a
-          href="#residences"
-          data-cursor-hover
-          className="hover:text-amber-400 transition-colors duration-300 uppercase tracking-widest text-[11px]"
-        >
-          Residences
-        </a>
-        <a
-          href="#gallery"
-          data-cursor-hover
-          className="hover:text-amber-400 transition-colors duration-300 uppercase tracking-widest text-[11px]"
-        >
-          Gallery
-        </a>
-        
-        {/* Transparent Liquid Glass CTA Button */}
-        <a
-          href="#inquire"
-          data-cursor-hover
-          className="bg-white/[0.05] hover:bg-amber-400/20 text-slate-100 hover:text-amber-300 border border-white/20 hover:border-amber-400/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.3)] backdrop-blur-md transition-all duration-500 px-5 py-1.5 rounded-full text-[10px] font-mono tracking-[0.2em] uppercase font-medium"
-        >
-          Inquire
-        </a>
-      </nav>
-    </header>
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" className={className}>
+      <circle cx="16" cy="16" r="15" stroke="currentColor" strokeOpacity="0.28" />
+      <path
+        d="M11 9v14M21 9v14M11 16h10"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="square"
+      />
+    </svg>
   );
-};
+}
+
+export function HeroHeader() {
+  const headerRef = useRef<HTMLElement | null>(null);
+  const ctaRef = useRef<HTMLAnchorElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+
+  // Backdrop only appears once the viewer has left the hero.
+  useGsap(() => {
+    const header = headerRef.current;
+    if (!header) return;
+
+    const st = ScrollTrigger.create({
+      start: "top -80",
+      end: 99999,
+      onToggle: (self) => header.classList.toggle("is-docked", self.isActive),
+    });
+    return () => st.kill();
+  }, undefined, []);
+
+  useEffect(() => magnetic(ctaRef.current, 0.28), []);
+
+  // Mobile menu open/close choreography.
+  useGsap(
+    () => {
+      const menu = menuRef.current;
+      if (!menu) return;
+
+      if (open) {
+        gsap.set(menu, { display: "flex" });
+        gsap.fromTo(menu, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.35, ease: EASE.out });
+        gsap.fromTo(
+          menu.querySelectorAll("[data-menu-item]"),
+          { autoAlpha: 0, y: 24 },
+          { autoAlpha: 1, y: 0, duration: 0.6, ease: EASE.out, stagger: 0.07, delay: 0.05 }
+        );
+      } else {
+        gsap.to(menu, {
+          autoAlpha: 0,
+          duration: 0.28,
+          ease: "power2.in",
+          onComplete: () => gsap.set(menu, { display: "none" }),
+        });
+      }
+    },
+    undefined,
+    [open]
+  );
+
+  // Escape closes the menu; body scroll locks while it is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  return (
+    <>
+      <a href="#concept" className="skip-link">
+        Skip to content
+      </a>
+
+      <header ref={headerRef} className="fixed inset-x-0 top-0 z-50">
+        <div className="flex items-center justify-between px-4 py-4 md:px-8 md:py-6">
+          {/* Wordmark, floated in its own glass */}
+          <a
+            href="#hero"
+            data-cursor-hover
+            className="liquid-glass rounded-pill group flex items-center gap-3 py-2 pl-2 pr-5 transition-colors duration-500"
+            aria-label="Villa Horizon, back to top"
+          >
+            <Monogram className="h-9 w-9 shrink-0 text-champagne transition-transform duration-700 group-hover:rotate-180" />
+            <span className="flex flex-col leading-none">
+              <span className="font-display text-sm tracking-[0.2em] text-bone">HORIZON</span>
+              <span className="mt-1 font-mono text-[9px] tracking-[0.26em] text-stone">
+                VILLA RESIDENCE
+              </span>
+            </span>
+          </a>
+
+          {/* Navigation capsule */}
+          <nav
+            aria-label="Primary"
+            className="liquid-glass rounded-pill hidden items-center gap-8 py-2 pl-8 pr-2 transition-colors duration-500 md:flex"
+          >
+            {NAV.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                data-cursor-hover
+                className="relative font-mono text-[11px] uppercase tracking-[0.18em] text-bone/80 transition-colors duration-300 hover:text-bone after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-0 after:bg-champagne after:transition-all after:duration-500 hover:after:w-full"
+              >
+                {item.label}
+              </a>
+            ))}
+            <a
+              ref={ctaRef}
+              href="#inquire"
+              data-cursor-hover
+              className="rounded-pill border border-champagne/45 bg-champagne/10 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-champagne-bright transition-colors duration-500 hover:bg-champagne hover:text-ink"
+            >
+              Enquire
+            </a>
+          </nav>
+
+          {/* Mobile trigger */}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            className="liquid-glass flex h-12 w-12 flex-col items-center justify-center gap-[5px] rounded-full md:hidden"
+          >
+            <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
+            <span
+              className={`block h-px w-5 bg-bone transition-transform duration-300 ${
+                open ? "translate-y-[3px] rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`block h-px w-5 bg-bone transition-transform duration-300 ${
+                open ? "-translate-y-[3px] -rotate-45" : ""
+              }`}
+            />
+          </button>
+        </div>
+      </header>
+
+      {/* Full-screen mobile menu */}
+      <div
+        id="mobile-menu"
+        ref={menuRef}
+        className="fixed inset-0 z-[60] hidden flex-col justify-center bg-ink/97 px-8 opacity-0 backdrop-blur-2xl md:hidden"
+      >
+        <nav aria-label="Mobile" className="flex flex-col gap-1">
+          {NAV.map((item, i) => (
+            <a
+              key={item.href}
+              href={item.href}
+              data-menu-item
+              onClick={() => setOpen(false)}
+              className="border-b border-hairline-soft py-5"
+            >
+              <span className="mr-4 font-mono text-[10px] tracking-[0.2em] text-champagne">
+                0{i + 1}
+              </span>
+              <span className="font-display text-3xl font-light text-bone">{item.label}</span>
+            </a>
+          ))}
+          <a
+            href="#inquire"
+            data-menu-item
+            onClick={() => setOpen(false)}
+            className="mt-8 rounded-pill border border-champagne/50 py-4 text-center font-mono text-[11px] uppercase tracking-[0.22em] text-champagne"
+          >
+            Enquire
+          </a>
+        </nav>
+      </div>
+    </>
+  );
+}

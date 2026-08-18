@@ -1,280 +1,350 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import { SEQUENCE } from "@/data/villa";
 
-interface CanvasSequenceProps {
-  totalFrames?: number;
-  initialPreloadCount?: number;
-  currentFrameIndex?: number; // Controlled purely by GSAP ScrollTrigger progress
-  className?: string;
-  onInitialLoadComplete?: () => void;
+export interface CanvasSequenceHandle {
+  /** Draw a frame immediately. Called from ScrollTrigger's onUpdate — no React state involved. */
+  draw: (frame: number) => void;
 }
 
-export const CanvasSequence: React.FC<CanvasSequenceProps> = ({
-  totalFrames = 500,
-  initialPreloadCount = 150,
-  currentFrameIndex = 0,
-  className = "",
-  onInitialLoadComplete,
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const imagesRef = useRef<(HTMLImageElement | null)[]>([]);
-  const lastDrawnIndexRef = useRef<number | null>(null);
-  
-  const [loadedCount, setLoadedCount] = useState<number>(0);
-  const [isInitialLoaded, setIsInitialLoaded] = useState<boolean>(false);
-  const [preloaderHidden, setPreloaderHidden] = useState<boolean>(false);
+interface CanvasSequenceProps {
+  onReady?: () => void;
+  className?: string;
+}
 
-  // Helper to format frame filename: /frames/frame_0001.jpg
-  const getFrameUrl = (index: number) => {
-    const frameNum = String(index + 1).padStart(4, "0");
-    return `/frames/frame_${frameNum}.jpg`;
+interface Variant {
+  dir: string;
+  stride: number;
+  /** Number of files that actually exist in this variant's directory. */
+  count: number;
+}
+
+const MAX_INFLIGHT = 6;
+
+function pickVariant(): Variant {
+  const desktop: Variant = {
+    dir: SEQUENCE.desktop.dir,
+    stride: 1,
+    count: SEQUENCE.totalFrames,
   };
+  if (typeof window === "undefined") return desktop;
 
-  // Draw specific frame to canvas with responsive 'cover' scaling
-  const renderFrame = useCallback((frameIndex: number, forceRedraw = false) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const nav = navigator as Navigator & {
+    connection?: { saveData?: boolean; effectiveType?: string };
+  };
+  const conn = nav.connection;
+  const frugal =
+    conn?.saveData === true ||
+    conn?.effectiveType === "2g" ||
+    conn?.effectiveType === "slow-2g" ||
+    conn?.effectiveType === "3g";
 
-    // Skip redraw if this frame was already rendered and no force redraw (e.g. resize) was requested
-    if (!forceRedraw && lastDrawnIndexRef.current === frameIndex) {
-      return;
-    }
+  const narrow = window.matchMedia("(max-width: 900px)").matches;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Fallback to nearest loaded frame if target frame is still downloading
-    let img = imagesRef.current[frameIndex];
-    if (!img || !img.complete || img.naturalWidth === 0) {
-      for (let offset = 1; offset < totalFrames; offset++) {
-        const prevImg = imagesRef.current[frameIndex - offset];
-        if (prevImg && prevImg.complete && prevImg.naturalWidth > 0) {
-          img = prevImg;
-          break;
-        }
-        const nextImg = imagesRef.current[frameIndex + offset];
-        if (nextImg && nextImg.complete && nextImg.naturalWidth > 0) {
-          img = nextImg;
-          break;
-        }
-      }
-    }
-
-    if (!img || !img.complete || img.naturalWidth === 0) return;
-
-    // Handle high DPI crisp rendering
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    
-    if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-    }
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    // Calculate aspect ratio 'cover' scaling
-    const imgWidth = img.naturalWidth;
-    const imgHeight = img.naturalHeight;
-    const imgAspect = imgWidth / imgHeight;
-    const canvasAspect = rect.width / rect.height;
-
-    let renderWidth = rect.width;
-    let renderHeight = rect.height;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    if (canvasAspect > imgAspect) {
-      renderHeight = rect.width / imgAspect;
-      offsetY = (rect.height - renderHeight) / 2;
-    } else {
-      renderWidth = rect.height * imgAspect;
-      offsetX = (rect.width - renderWidth) / 2;
-    }
-
-    ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
-    ctx.restore();
-
-    lastDrawnIndexRef.current = frameIndex;
-  }, [totalFrames]);
-
-  // Preload initial frames (1 to 150)
-  useEffect(() => {
-    imagesRef.current = new Array(totalFrames).fill(null);
-
-    let mounted = true;
-    let count = 0;
-    const initialTarget = Math.min(initialPreloadCount, totalFrames);
-
-    const loadInitialFrames = async () => {
-      const promises: Promise<void>[] = [];
-
-      for (let i = 0; i < initialTarget; i++) {
-        const promise = new Promise<void>((resolve) => {
-          const img = new Image();
-          img.src = getFrameUrl(i);
-          img.onload = () => {
-            if (mounted) {
-              imagesRef.current[i] = img;
-              count++;
-              setLoadedCount(count);
-              // Render frame 0 as soon as it arrives
-              if (i === 0) {
-                renderFrame(0, true);
-              }
-            }
-            resolve();
-          };
-          img.onerror = () => {
-            if (mounted) {
-              count++;
-              setLoadedCount(count);
-            }
-            resolve();
-          };
-        });
-        promises.push(promise);
-      }
-
-      await Promise.all(promises);
-
-      if (mounted) {
-        setIsInitialLoaded(true);
-        if (onInitialLoadComplete) onInitialLoadComplete();
-
-        // Hide preloader overlay cleanly
-        setTimeout(() => {
-          if (mounted) setPreloaderHidden(true);
-        }, 400);
-
-        // Begin non-blocking background fetch for remaining frames (151 to 500)
-        loadBackgroundFrames(initialTarget);
-      }
+  if (narrow || frugal) {
+    return {
+      dir: SEQUENCE.mobile.dir,
+      stride: SEQUENCE.mobile.stride,
+      count: Math.ceil(SEQUENCE.totalFrames / SEQUENCE.mobile.stride),
     };
+  }
+  return desktop;
+}
 
-    const loadBackgroundFrames = (startIndex: number) => {
-      if (startIndex >= totalFrames) return;
+/**
+ * Renders the walkthrough as a canvas image sequence.
+ *
+ * Frames are plain <img> elements decoded off the main thread via `decode()`,
+ * which keeps first-draw latency low while letting the browser purge decoded
+ * bitmaps under memory pressure (an explicit ImageBitmap cache would pin them).
+ * Loading radiates outward from the playhead, so a fast scroll never strands
+ * the viewer on a frame from a different room.
+ */
+export const CanvasSequence = forwardRef<CanvasSequenceHandle, CanvasSequenceProps>(
+  function CanvasSequence({ onReady, className = "" }, ref) {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const framesRef = useRef<(HTMLImageElement | null)[]>([]);
+    const variantRef = useRef<Variant>({
+      dir: SEQUENCE.desktop.dir,
+      stride: 1,
+      count: SEQUENCE.totalFrames,
+    });
+    const playheadRef = useRef(0);
+    const lastDrawnRef = useRef(-1);
+    const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
+    const pumpRef = useRef<(() => void) | null>(null);
 
-      const batchSize = 10;
-      let currentIndex = startIndex;
+    const [progress, setProgress] = useState(0);
+    const [ready, setReady] = useState(false);
+    const [curtainGone, setCurtainGone] = useState(false);
+    const [failed, setFailed] = useState(false);
 
-      const loadNextBatch = () => {
-        if (!mounted || currentIndex >= totalFrames) return;
+    /** Maps a 0..totalFrames-1 timeline frame onto this variant's file slot. */
+    const toSlot = useCallback((frame: number) => {
+      const v = variantRef.current;
+      return Math.max(0, Math.min(v.count - 1, Math.round(frame / v.stride)));
+    }, []);
 
-        const endBatch = Math.min(currentIndex + batchSize, totalFrames);
-        const batchPromises: Promise<void>[] = [];
+    const paint = useCallback((slot: number, force = false) => {
+      const canvas = canvasRef.current;
+      const ctx = ctxRef.current;
+      if (!canvas || !ctx) return;
+      if (!force && lastDrawnRef.current === slot) return;
 
-        for (let i = currentIndex; i < endBatch; i++) {
-          const promise = new Promise<void>((resolve) => {
-            const img = new Image();
-            img.src = getFrameUrl(i);
-            img.onload = () => {
-              if (mounted) {
-                imagesRef.current[i] = img;
-              }
-              resolve();
-            };
-            img.onerror = () => {
-              resolve();
-            };
-          });
-          batchPromises.push(promise);
+      let img = framesRef.current[slot];
+
+      // Fall back to the closest loaded neighbour rather than showing nothing.
+      if (!img?.complete || !img.naturalWidth) {
+        let found: HTMLImageElement | null = null;
+        for (let offset = 1; offset <= 60 && !found; offset++) {
+          const back = framesRef.current[slot - offset];
+          if (back?.complete && back.naturalWidth) found = back;
+          const fwd = framesRef.current[slot + offset];
+          if (!found && fwd?.complete && fwd.naturalWidth) found = fwd;
         }
+        img = found;
+      }
+      if (!img?.complete || !img.naturalWidth) return;
 
-        Promise.all(batchPromises).then(() => {
-          currentIndex = endBatch;
-          if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-            window.requestIdleCallback(() => loadNextBatch(), { timeout: 200 });
-          } else {
-            setTimeout(loadNextBatch, 50);
-          }
-        });
+      const { w, h, dpr } = sizeRef.current;
+      if (!w || !h) return;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#0e0d0b";
+      ctx.fillRect(0, 0, w, h);
+
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      const boxAspect = w / h;
+
+      let dw: number;
+      let dh: number;
+      let dx: number;
+      let dy: number;
+
+      if (boxAspect < 0.95) {
+        // Portrait viewport: letterbox the cinematic frame rather than cropping
+        // away three-quarters of it. The band sits just below the title block
+        // and just above the room card — see the hero's portrait layout.
+        dw = w;
+        dh = w / imgAspect;
+        dx = 0;
+        dy = h * 0.47 - dh / 2;
+      } else if (boxAspect > imgAspect) {
+        dw = w;
+        dh = w / imgAspect;
+        dx = 0;
+        dy = (h - dh) / 2;
+      } else {
+        dh = h;
+        dw = h * imgAspect;
+        dy = 0;
+        dx = (w - dw) / 2;
+      }
+
+      ctx.drawImage(img, dx, dy, dw, dh);
+      lastDrawnRef.current = slot;
+    }, []);
+
+    const draw = useCallback(
+      (frame: number) => {
+        playheadRef.current = frame;
+        paint(toSlot(frame));
+        pumpRef.current?.();
+      },
+      [paint, toSlot]
+    );
+
+    useImperativeHandle(ref, () => ({ draw }), [draw]);
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      let mounted = true;
+      const variant = pickVariant();
+      variantRef.current = variant;
+      framesRef.current = new Array(variant.count).fill(null);
+      ctxRef.current = canvas.getContext("2d", { alpha: false });
+
+      const frameUrl = (slot: number) =>
+        `${variant.dir}/f_${String(slot + 1).padStart(4, "0")}.webp`;
+
+      // Cache geometry instead of reading layout on every draw.
+      const measure = () => {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        sizeRef.current = { w: rect.width, h: rect.height, dpr };
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        paint(toSlot(playheadRef.current), true);
+      };
+      measure();
+
+      const ro = new ResizeObserver(measure);
+      ro.observe(canvas);
+
+      /* ---------------- streaming loader ---------------- */
+
+      const requested = new Set<number>();
+      let inflight = 0;
+
+      const nextSlot = (): number | null => {
+        const centre = toSlot(playheadRef.current);
+        for (let radius = 0; radius < variant.count; radius++) {
+          const ahead = centre + radius;
+          if (ahead < variant.count && !requested.has(ahead)) return ahead;
+          const behind = centre - radius;
+          if (behind >= 0 && !requested.has(behind)) return behind;
+        }
+        return null;
       };
 
-      loadNextBatch();
-    };
+      const loadSlot = (slot: number) => {
+        requested.add(slot);
+        inflight++;
 
-    loadInitialFrames();
+        const img = new Image();
+        img.decoding = "async";
+        // The opening frames matter for time-to-first-paint; the rest can wait.
+        img.fetchPriority = slot < 8 ? "high" : "low";
+        img.src = frameUrl(slot);
 
-    return () => {
-      mounted = false;
-    };
-  }, [totalFrames, initialPreloadCount, renderFrame, onInitialLoadComplete]);
+        const commit = () => {
+          if (!mounted) return;
+          framesRef.current[slot] = img;
+          if (toSlot(playheadRef.current) === slot || lastDrawnRef.current === -1) {
+            paint(slot, true);
+          }
+        };
 
-  // Redraw ONLY when currentFrameIndex changes
-  useEffect(() => {
-    let animFrameId: number;
-    const clampedIndex = Math.max(0, Math.min(totalFrames - 1, Math.floor(currentFrameIndex)));
+        const settle = () => {
+          inflight--;
+          if (mounted) pump();
+        };
 
-    // Schedule frame render on requestAnimationFrame after scroll update
-    animFrameId = requestAnimationFrame(() => {
-      renderFrame(clampedIndex);
-    });
+        img
+          .decode()
+          .then(() => {
+            commit();
+            settle();
+          })
+          .catch(() => {
+            // decode() can reject for already-cached images on some engines.
+            if (img.complete && img.naturalWidth) commit();
+            settle();
+          });
+      };
 
-    return () => cancelAnimationFrame(animFrameId);
-  }, [currentFrameIndex, renderFrame, totalFrames]);
+      /** Keeps MAX_INFLIGHT requests in the air, always nearest the playhead. */
+      const pump = () => {
+        if (!mounted) return;
+        while (inflight < MAX_INFLIGHT) {
+          const slot = nextSlot();
+          if (slot === null) break;
+          loadSlot(slot);
+        }
+      };
+      pumpRef.current = pump;
 
-  // Window resize handler
-  useEffect(() => {
-    const handleResize = () => {
-      const clampedIndex = Math.max(0, Math.min(totalFrames - 1, Math.floor(currentFrameIndex)));
-      renderFrame(clampedIndex, true);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [currentFrameIndex, renderFrame, totalFrames]);
+      /* ---------------- opening gate ---------------- */
 
-  const loadingPercentage = Math.min(
-    100,
-    Math.round((loadedCount / Math.min(initialPreloadCount, totalFrames)) * 100)
-  );
+      const gate = Math.min(SEQUENCE.preloadCount, variant.count);
+      let settled = 0;
+      let opened = false;
 
-  return (
-    <div className={`relative w-full h-full overflow-hidden bg-black ${className}`}>
-      {/* Canvas Element */}
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full block object-cover"
-      />
+      const openCurtain = () => {
+        if (opened || !mounted) return;
+        opened = true;
+        setReady(true);
+        onReady?.();
+        window.setTimeout(() => mounted && setCurtainGone(true), 700);
+      };
 
-      {/* Preloader Overlay */}
-      {!preloaderHidden && (
-        <div
-          className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white transition-opacity duration-700 ease-in-out ${
-            isInitialLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
-        >
-          <div className="absolute inset-0 bg-radial from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+      pump();
 
-          <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center max-w-md">
-            <div className="space-y-1">
-              <h2 className="text-xs uppercase tracking-[0.3em] font-medium text-amber-400/90">
-                Architectural Showcase
-              </h2>
-              <h1 className="text-2xl font-light tracking-wider text-slate-100">
-                Loading 3D Villa Experience
-              </h1>
-            </div>
+      // Track the opening batch so the progress readout is honest.
+      const gateTimer = window.setInterval(() => {
+        if (!mounted) return;
+        let have = 0;
+        for (let i = 0; i < gate; i++) {
+          const f = framesRef.current[i];
+          if (f?.complete && f.naturalWidth) have++;
+        }
+        if (have > settled) {
+          settled = have;
+          setProgress(Math.round((settled / gate) * 100));
+        }
+        if (settled >= gate) {
+          window.clearInterval(gateTimer);
+          openCurtain();
+        }
+      }, 90);
 
-            <div className="flex items-baseline gap-1 my-2">
-              <span className="text-6xl font-extralight tracking-tighter text-amber-400 font-mono">
-                {loadingPercentage}
-              </span>
-              <span className="text-xl font-light text-amber-400/70">%</span>
-            </div>
+      // Safety valve: never trap the viewer behind a stalled asset.
+      const failsafe = window.setTimeout(() => {
+        if (!mounted || opened) return;
+        if (settled === 0) setFailed(true);
+        openCurtain();
+      }, 12000);
 
-            <div className="w-64 h-[3px] bg-slate-800 rounded-full overflow-hidden relative">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 transition-all duration-200 ease-out rounded-full shadow-[0_0_12px_rgba(245,158,11,0.6)]"
-                style={{ width: `${loadingPercentage}%` }}
-              />
+      return () => {
+        mounted = false;
+        pumpRef.current = null;
+        ro.disconnect();
+        window.clearInterval(gateTimer);
+        window.clearTimeout(failsafe);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    return (
+      <div className={`relative h-full w-full overflow-hidden bg-ink ${className}`}>
+        <canvas
+          ref={canvasRef}
+          className="block h-full w-full"
+          role="img"
+          aria-label="Cinematic walkthrough of Villa Horizon, from the arrival court through the living spaces to the garden courtyard at dusk."
+        />
+
+        {!curtainGone && (
+          <div
+            className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-ink transition-opacity duration-700 ease-out ${
+              ready ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+          >
+            <div className="flex w-[min(78vw,22rem)] flex-col items-center gap-7 text-center">
+              <div className="space-y-3">
+                <p className="eyebrow">Atelier Vermeer</p>
+                <h2 className="font-display text-4xl font-light text-bone md:text-5xl">
+                  Villa Horizon
+                </h2>
+              </div>
+
+              <div className="h-px w-full bg-hairline">
+                <div
+                  className="h-px bg-champagne transition-[width] duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+
+              <p className="font-mono text-[11px] tracking-[0.24em] text-stone tabular">
+                {failed
+                  ? "SEQUENCE UNAVAILABLE — CONTINUE BELOW"
+                  : `PREPARING THE WALKTHROUGH · ${String(progress).padStart(3, "0")}%`}
+              </p>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
+        )}
+      </div>
+    );
+  }
+);

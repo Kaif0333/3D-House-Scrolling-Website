@@ -1,92 +1,108 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
+import { gsap, prefersReducedMotion, EASE } from "@/lib/motion";
 
-export const CustomCursor: React.FC = () => {
-  const [pos, setPos] = useState({ x: -100, y: -100 });
-  const [trailingPos, setTrailingPos] = useState({ x: -100, y: -100 });
-  const [isHovered, setIsHovered] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+const INTERACTIVE = "a, button, [data-cursor-hover], input, select, textarea, label";
+
+/**
+ * Champagne dot with a trailing ring.
+ *
+ * Everything runs through gsap.quickTo inside a single mount-only effect, so
+ * the pointer path never touches React state and the ring's easing is the lag
+ * (rather than the lag being an accident of a restarting rAF loop). The native
+ * cursor is hidden via a class on <html>, and only on devices that have a fine
+ * pointer to begin with.
+ */
+export function CustomCursor() {
+  const dotRef = useRef<HTMLDivElement | null>(null);
+  const ringRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // Hide cursor on touch-only devices
-    if (window.matchMedia("(pointer: coarse)").matches) return;
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+    if (!dot || !ring) return;
 
-    let animFrameId: number;
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)");
+    if (!fine.matches || prefersReducedMotion()) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      setIsVisible(true);
-      setPos({ x: e.clientX, y: e.clientY });
+    const root = document.documentElement;
+    root.classList.add("has-custom-cursor");
+    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, autoAlpha: 0 });
 
-      // Check if target or parent has interactive cursor attributes
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.closest("button") ||
-          target.closest("a") ||
-          target.closest("[data-cursor-hover]"))
-      ) {
-        setIsHovered(true);
-      } else {
-        setIsHovered(false);
+    // The ring's slower duration *is* the trail.
+    const dotX = gsap.quickTo(dot, "x", { duration: 0.12, ease: "power2.out" });
+    const dotY = gsap.quickTo(dot, "y", { duration: 0.12, ease: "power2.out" });
+    const ringX = gsap.quickTo(ring, "x", { duration: 0.5, ease: EASE.out });
+    const ringY = gsap.quickTo(ring, "y", { duration: 0.5, ease: EASE.out });
+
+    let shown = false;
+    const onMove = (e: PointerEvent) => {
+      if (!shown) {
+        shown = true;
+        gsap.to([dot, ring], { autoAlpha: 1, duration: 0.3 });
       }
+      dotX(e.clientX);
+      dotY(e.clientY);
+      ringX(e.clientX);
+      ringY(e.clientY);
     };
 
-    const handleMouseLeave = () => {
-      setIsVisible(false);
+    const setHover = (on: boolean) => {
+      gsap.to(ring, {
+        scale: on ? 1.75 : 1,
+        borderColor: on ? "rgba(198,168,124,0.9)" : "rgba(237,231,219,0.28)",
+        backgroundColor: on ? "rgba(198,168,124,0.09)" : "rgba(198,168,124,0)",
+        duration: 0.35,
+        ease: EASE.out,
+        overwrite: "auto",
+      });
+      gsap.to(dot, { scale: on ? 0.4 : 1, duration: 0.35, ease: EASE.out, overwrite: "auto" });
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseleave", handleMouseLeave);
-
-    // Smooth trailing ring follow loop
-    const lerp = (start: number, end: number, factor: number) =>
-      start + (end - start) * factor;
-
-    let currentX = -100;
-    let currentY = -100;
-
-    const loop = () => {
-      currentX = lerp(currentX, pos.x, 0.15);
-      currentY = lerp(currentY, pos.y, 0.15);
-      setTrailingPos({ x: currentX, y: currentY });
-      animFrameId = requestAnimationFrame(loop);
+    const onOver = (e: PointerEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.(INTERACTIVE)) setHover(true);
+    };
+    const onOut = (e: PointerEvent) => {
+      if ((e.target as HTMLElement | null)?.closest?.(INTERACTIVE)) setHover(false);
     };
 
-    animFrameId = requestAnimationFrame(loop);
+    const onLeave = () => gsap.to([dot, ring], { autoAlpha: 0, duration: 0.25 });
+    const onEnter = () => gsap.to([dot, ring], { autoAlpha: 1, duration: 0.25 });
+    const onDown = () => gsap.to(ring, { scale: 0.85, duration: 0.2, overwrite: "auto" });
+    const onUp = () => gsap.to(ring, { scale: 1, duration: 0.3, overwrite: "auto" });
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("pointerover", onOver);
+    document.addEventListener("pointerout", onOut);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("mouseleave", onLeave);
+    document.addEventListener("mouseenter", onEnter);
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-      cancelAnimationFrame(animFrameId);
+      root.classList.remove("has-custom-cursor");
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerover", onOver);
+      document.removeEventListener("pointerout", onOut);
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("mouseleave", onLeave);
+      document.removeEventListener("mouseenter", onEnter);
     };
-  }, [pos.x, pos.y]);
-
-  if (!isVisible) return null;
+  }, []);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
-      {/* Center Micro Dot */}
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[70] hidden md:block">
       <div
-        style={{
-          transform: `translate3d(${pos.x}px, ${pos.y}px, 0) translate(-50%, -50%)`,
-        }}
-        className="absolute w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.8)] transition-transform duration-75"
+        ref={ringRef}
+        className="absolute left-0 top-0 h-8 w-8 rounded-full border opacity-0"
+        style={{ borderColor: "rgba(237,231,219,0.28)" }}
       />
-
-      {/* Trailing Luxury Ring */}
       <div
-        style={{
-          transform: `translate3d(${trailingPos.x}px, ${trailingPos.y}px, 0) translate(-50%, -50%) scale(${
-            isHovered ? 1.6 : 1
-          })`,
-        }}
-        className={`absolute w-8 h-8 rounded-full border transition-all duration-300 ease-out ${
-          isHovered
-            ? "border-amber-400 bg-amber-400/10 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-            : "border-slate-400/30"
-        }`}
+        ref={dotRef}
+        className="absolute left-0 top-0 h-1.5 w-1.5 rounded-full bg-champagne opacity-0"
       />
     </div>
   );
-};
+}

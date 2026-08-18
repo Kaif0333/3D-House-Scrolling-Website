@@ -1,0 +1,13 @@
+{
+  "desktop": {
+    "count": 500,
+    "dir": "/seq/d",
+    "width": 1600
+  },
+  "mobile": {
+    "count": 250,
+    "dir": "/seq/m",
+    "width": 960,
+    "stride": 2
+  }
+}
